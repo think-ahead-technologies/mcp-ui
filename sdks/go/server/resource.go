@@ -80,11 +80,15 @@ func CreateUIResource(uri string, content ResourceContentPayload, encoding Encod
 		return nil, fmt.Errorf("unsupported content type: %T", content)
 	}
 
-	// Apply adapter if provided (only for RawHTML content)
-	if options.Adapter != nil {
+	// Apply protocol-specific script injection if protocol is configured (only for RawHTML content)
+	if options.Protocol != nil {
 		if _, isRawHTML := content.(*RawHTMLPayload); isRawHTML {
-			contentString = wrapWithAdapter(contentString, options.Adapter)
-			mimeType = options.Adapter.GetMIMEType()
+			shimGen := getProtocolShimGenerator(options.Protocol)
+			scriptTag := shimGen.GenerateScriptTag()
+			if scriptTag != "" {
+				contentString = injectScriptTag(contentString, scriptTag)
+			}
+			mimeType = shimGen.GetMIMEType()
 		}
 	}
 
@@ -128,34 +132,33 @@ func CreateUIResource(uri string, content ResourceContentPayload, encoding Encod
 	return resource, nil
 }
 
-// wrapWithAdapter wraps HTML content with an adapter script.
-// It injects the adapter script into the <head> tag, creating one if it doesn't exist.
-func wrapWithAdapter(htmlContent string, adapter Adapter) string {
-	adapterScript := adapter.GetScript()
-
+// injectScriptTag injects a script tag into HTML <head>.
+// This function enables protocol-based external adapter loading by injecting
+// a script reference, keeping the HTML content clean and the AI context window minimal.
+func injectScriptTag(htmlContent string, scriptTag string) string {
 	// Check if there's a <head> tag
 	headStart := findInsensitive(htmlContent, "<head>")
 	headEnd := findInsensitive(htmlContent, "</head>")
 
 	if headStart >= 0 && headEnd >= 0 && headEnd > headStart {
-		// Inject adapter script after <head>
+		// Inject script tag after <head>
 		headTagEnd := headStart + len("<head>")
-		return htmlContent[:headTagEnd] + "\n" + adapterScript + htmlContent[headTagEnd:]
+		return htmlContent[:headTagEnd] + "\n" + scriptTag + htmlContent[headTagEnd:]
 	}
 
 	// Check if there's an <html> tag
 	htmlStart := findInsensitive(htmlContent, "<html>")
 
 	if htmlStart >= 0 {
-		// Insert <head> with adapter after <html>
+		// Insert <head> with script tag after <html>
 		htmlTagEnd := htmlStart + len("<html>")
-		headSection := fmt.Sprintf("\n<head>\n%s\n</head>\n", adapterScript)
+		headSection := fmt.Sprintf("\n<head>\n%s\n</head>\n", scriptTag)
 		return htmlContent[:htmlTagEnd] + headSection + htmlContent[htmlTagEnd:]
 	}
 
 	// No <html> or <head> tag, wrap everything
 	return fmt.Sprintf("<html>\n<head>\n%s\n</head>\n<body>\n%s\n</body>\n</html>",
-		adapterScript, htmlContent)
+		scriptTag, htmlContent)
 }
 
 // findInsensitive finds a substring case-insensitively and returns the index.

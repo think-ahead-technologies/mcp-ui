@@ -170,15 +170,33 @@ type CreateUIResourceOptions struct {
 	Metadata              map[string]interface{}
 	ResourceProps         map[string]interface{}
 	EmbeddedResourceProps map[string]interface{}
-	Adapter               Adapter // Optional adapter for platform-specific protocol translation
+	Protocol              *ProtocolConfig // Server-side protocol selection with external adapter scripts
 }
 
-// Adapter is the interface for platform-specific adapters.
-// Import from adapters package to use.
-type Adapter interface {
-	GetScript() string
-	GetMIMEType() string
-	GetType() string
+// ProtocolType defines the UI protocol to use for a session
+type ProtocolType string
+
+const (
+	// ProtocolTypeGeneric represents standard MCP-UI protocol (no adapter needed)
+	ProtocolTypeGeneric ProtocolType = "generic"
+	// ProtocolTypeAppsSDK represents ChatGPT/Apps SDK protocol
+	ProtocolTypeAppsSDK ProtocolType = "appssdk"
+	// ProtocolTypeMCPApps represents MCP Apps SEP (Streaming Extensible Protocol)
+	ProtocolTypeMCPApps ProtocolType = "mcpapps"
+)
+
+// ProtocolConfig holds protocol-specific configuration for server-side protocol selection.
+// This eliminates the need to inject large adapter runtimes into HTML content,
+// instead using external script references.
+type ProtocolConfig struct {
+	// Type specifies which protocol to use
+	Type ProtocolType
+	// Version specifies the adapter version (e.g., "v1")
+	Version string
+	// BaseURL specifies the base URL for external adapter scripts
+	BaseURL string
+	// Config contains protocol-specific settings
+	Config map[string]interface{}
 }
 
 // Option is a functional option for CreateUIResourceOptions
@@ -212,11 +230,49 @@ func WithEmbeddedResourceProps(props map[string]interface{}) Option {
 	}
 }
 
-// WithAdapter sets an adapter for platform-specific protocol translation.
-// When set, the adapter will wrap the HTML content and override the MIME type.
-func WithAdapter(adapter Adapter) Option {
+// WithProtocol sets the protocol type for this resource.
+// This enables server-side protocol selection using external adapter scripts,
+// eliminating the need to inject large adapter runtimes into HTML content.
+// Example: WithProtocol(ProtocolTypeAppsSDK)
+func WithProtocol(protocol ProtocolType) Option {
 	return func(o *CreateUIResourceOptions) {
-		o.Adapter = adapter
+		if o.Protocol == nil {
+			o.Protocol = &ProtocolConfig{}
+		}
+		o.Protocol.Type = protocol
+	}
+}
+
+// WithProtocolConfig sets the full protocol configuration for this resource.
+// This allows complete control over protocol selection, versioning, and configuration.
+// Example: WithProtocolConfig(&ProtocolConfig{Type: ProtocolTypeAppsSDK, Version: "v1"})
+func WithProtocolConfig(config *ProtocolConfig) Option {
+	return func(o *CreateUIResourceOptions) {
+		o.Protocol = config
+	}
+}
+
+// WithProtocolVersion sets the adapter version for the protocol.
+// This determines which version of the external adapter script to load.
+// Example: WithProtocolVersion("v2")
+func WithProtocolVersion(version string) Option {
+	return func(o *CreateUIResourceOptions) {
+		if o.Protocol == nil {
+			o.Protocol = &ProtocolConfig{}
+		}
+		o.Protocol.Version = version
+	}
+}
+
+// WithProtocolBaseURL sets the base URL for external adapter scripts.
+// Use this to self-host adapter scripts instead of using the default CDN.
+// Example: WithProtocolBaseURL("https://myserver.com/adapters")
+func WithProtocolBaseURL(baseURL string) Option {
+	return func(o *CreateUIResourceOptions) {
+		if o.Protocol == nil {
+			o.Protocol = &ProtocolConfig{}
+		}
+		o.Protocol.BaseURL = baseURL
 	}
 }
 
