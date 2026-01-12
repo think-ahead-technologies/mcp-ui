@@ -167,13 +167,13 @@ import { createUIResource } from '@mcp-ui/server';
 
 const htmlResource = createUIResource({
   uri: 'ui://greeting/1',
-  content: { 
-    type: 'rawHtml', 
+  content: {
+    type: 'rawHtml',
     htmlString: `
       <button onclick="window.parent.postMessage({ type: 'tool', payload: { toolName: 'myTool', params: {} } }, '*')">
         Call Tool
       </button>
-    ` 
+    `
   },
   encoding: 'text',
   // Enable adapters
@@ -252,7 +252,7 @@ uv add mcp-ui-server
 
 ## 🚀 Getting Started
 
-You can use [GitMCP](https://gitmcp.io/idosal/mcp-ui) to give your IDE access to `mcp-ui`'s latest documentation! 
+You can use [GitMCP](https://gitmcp.io/idosal/mcp-ui) to give your IDE access to `mcp-ui`'s latest documentation!
 
 ### TypeScript
 
@@ -453,7 +453,7 @@ Host and user security is one of `mcp-ui`'s primary concerns. In all content typ
 - [ ] Explore providing a UI SDK (in addition to the client and server one)
 - [ ] Add declarative UI content type
 - [ ] Support generative UI?
-      
+
 ## Core Team
 `mcp-ui` is a project by [Ido Salomon](https://x.com/idosal1), in collaboration with [Liad Yosef](https://x.com/liadyosef).
 
