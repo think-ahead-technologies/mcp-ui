@@ -80,6 +80,14 @@ func CreateUIResource(uri string, content ResourceContentPayload, encoding Encod
 		return nil, fmt.Errorf("unsupported content type: %T", content)
 	}
 
+	// Apply adapter if provided (only for RawHTML content)
+	if options.Adapter != nil {
+		if _, isRawHTML := content.(*RawHTMLPayload); isRawHTML {
+			contentString = wrapWithAdapter(contentString, options.Adapter)
+			mimeType = options.Adapter.GetMIMEType()
+		}
+	}
+
 	// Build resource content
 	resourceContent := ResourceContent{
 		URI:      uri,
@@ -118,4 +126,72 @@ func CreateUIResource(uri string, content ResourceContentPayload, encoding Encod
 	}
 
 	return resource, nil
+}
+
+// wrapWithAdapter wraps HTML content with an adapter script.
+// It injects the adapter script into the <head> tag, creating one if it doesn't exist.
+func wrapWithAdapter(htmlContent string, adapter Adapter) string {
+	adapterScript := adapter.GetScript()
+
+	// Check if there's a <head> tag
+	headStart := findInsensitive(htmlContent, "<head>")
+	headEnd := findInsensitive(htmlContent, "</head>")
+
+	if headStart >= 0 && headEnd >= 0 && headEnd > headStart {
+		// Inject adapter script after <head>
+		headTagEnd := headStart + len("<head>")
+		return htmlContent[:headTagEnd] + "\n" + adapterScript + htmlContent[headTagEnd:]
+	}
+
+	// Check if there's an <html> tag
+	htmlStart := findInsensitive(htmlContent, "<html>")
+
+	if htmlStart >= 0 {
+		// Insert <head> with adapter after <html>
+		htmlTagEnd := htmlStart + len("<html>")
+		headSection := fmt.Sprintf("\n<head>\n%s\n</head>\n", adapterScript)
+		return htmlContent[:htmlTagEnd] + headSection + htmlContent[htmlTagEnd:]
+	}
+
+	// No <html> or <head> tag, wrap everything
+	return fmt.Sprintf("<html>\n<head>\n%s\n</head>\n<body>\n%s\n</body>\n</html>",
+		adapterScript, htmlContent)
+}
+
+// findInsensitive finds a substring case-insensitively and returns the index.
+// Returns -1 if not found.
+func findInsensitive(s, substr string) int {
+	sLower := toLower(s)
+	substrLower := toLower(substr)
+	return indexOf(sLower, substrLower)
+}
+
+// toLower converts a string to lowercase.
+func toLower(s string) string {
+	result := make([]rune, len(s))
+	for i, r := range s {
+		if r >= 'A' && r <= 'Z' {
+			result[i] = r + 32
+		} else {
+			result[i] = r
+		}
+	}
+	return string(result)
+}
+
+// indexOf finds the first occurrence of a substring.
+func indexOf(s, substr string) int {
+	if len(substr) == 0 {
+		return 0
+	}
+	if len(substr) > len(s) {
+		return -1
+	}
+
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return i
+		}
+	}
+	return -1
 }

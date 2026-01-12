@@ -22,6 +22,10 @@ const (
 	MimeTypeURIList        = "text/uri-list"
 	MimeTypeRemoteDomReact = "application/vnd.mcp-ui.remote-dom+javascript; framework=react"
 	MimeTypeRemoteDomWC    = "application/vnd.mcp-ui.remote-dom+javascript; framework=webcomponents"
+
+	// Adapter MIME type constants
+	MimeTypeAppsSdkAdapter = "text/html+skybridge"
+	MimeTypeMCPAppsAdapter = "text/html"
 )
 
 // UIMetadataKey defines standard metadata keys
@@ -166,6 +170,15 @@ type CreateUIResourceOptions struct {
 	Metadata              map[string]interface{}
 	ResourceProps         map[string]interface{}
 	EmbeddedResourceProps map[string]interface{}
+	Adapter               Adapter // Optional adapter for platform-specific protocol translation
+}
+
+// Adapter is the interface for platform-specific adapters.
+// Import from adapters package to use.
+type Adapter interface {
+	GetScript() string
+	GetMIMEType() string
+	GetType() string
 }
 
 // Option is a functional option for CreateUIResourceOptions
@@ -196,6 +209,14 @@ func WithResourceProps(props map[string]interface{}) Option {
 func WithEmbeddedResourceProps(props map[string]interface{}) Option {
 	return func(o *CreateUIResourceOptions) {
 		o.EmbeddedResourceProps = props
+	}
+}
+
+// WithAdapter sets an adapter for platform-specific protocol translation.
+// When set, the adapter will wrap the HTML content and override the MIME type.
+func WithAdapter(adapter Adapter) Option {
+	return func(o *CreateUIResourceOptions) {
+		o.Adapter = adapter
 	}
 }
 
