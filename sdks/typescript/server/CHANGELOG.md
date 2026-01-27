@@ -1,3 +1,27 @@
+# [6.0.0](https://github.com/MCP-UI-Org/mcp-ui/compare/server/v5.17.0...server/v6.0.0) (2026-01-26)
+
+
+### Features
+
+* mcp-ui -> mcp apps! ([#172](https://github.com/MCP-UI-Org/mcp-ui/issues/172)) ([93a6e22](https://github.com/MCP-UI-Org/mcp-ui/commit/93a6e225808894cac3206504cf15c481f88ed540))
+
+
+### BREAKING CHANGES
+
+* removed discarded content types, changed mimetype, updated docs, etc.
+
+# [5.17.0](https://github.com/MCP-UI-Org/mcp-ui/compare/server/v5.16.3...server/v5.17.0) (2026-01-25)
+
+
+### Bug Fixes
+
+* add connectedMoveCallback to the WC implementation ([#170](https://github.com/MCP-UI-Org/mcp-ui/issues/170)) ([5ac4734](https://github.com/MCP-UI-Org/mcp-ui/commit/5ac4734078ff56e213e7a57029fd612638abb0b4))
+
+
+### Features
+
+* React renderer for MCP Apps ([#147](https://github.com/MCP-UI-Org/mcp-ui/issues/147)) ([fbc918d](https://github.com/MCP-UI-Org/mcp-ui/commit/fbc918d713861396703ede124c5676cf3d1164dd))
+
 ## [5.16.3](https://github.com/MCP-UI-Org/mcp-ui/compare/server/v5.16.2...server/v5.16.3) (2025-12-18)
 
 

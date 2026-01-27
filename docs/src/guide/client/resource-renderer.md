@@ -1,6 +1,12 @@
 # UIResourceRenderer Component
 
-The `UIResourceRenderer` component is the **main entry point** for rendering MCP-UI resources in your application. It automatically detects the resource type and renders the appropriate component internally.
+::: tip For MCP Apps Hosts
+If your host supports MCP Apps (the standard), use [`AppRenderer`](../mcp-apps#apprenderer-component) instead. It fetches resources, handles the lifecycle, and provides a complete MCP Apps experience.
+
+`UIResourceRenderer` is for **legacy MCP-UI hosts** that embed UI resources directly in tool responses.
+:::
+
+The `UIResourceRenderer` component renders MCP-UI resources embedded in tool responses. It automatically detects the resource type and renders the appropriate component internally.
 It is available as a React component and as a Web Component.
 
 ## React Component
@@ -24,9 +30,8 @@ For developers using frameworks other than React, a Web Component version is ava
 
 `UIResourceRenderer` automatically handles:
 
-- **HTML Resources** (`text/html`): Direct HTML content rendered in sandboxed iframes
-- **External URLs** (`text/uri-list`): External applications and websites
-- **Remote DOM Resources** (`application/vnd.mcp-ui.remote-dom`): Server-generated UI components using Shopify's remote-dom
+- **HTML Resources** (`text/html;profile=mcp-app`): Direct HTML content rendered in sandboxed iframes
+- **External URLs**: External URLs now use `text/html;profile=mcp-app` - hosts that support external URLs will detect URL content
 
 ## Metadata Integration
 
@@ -48,7 +53,6 @@ interface UIResourceRendererProps {
   onUIAction?: (result: UIActionResult) => Promise<unknown>;
   supportedContentTypes?: ResourceContentType[];
   htmlProps?: Omit<HTMLResourceRendererProps, 'resource' | 'onUIAction'>;
-  remoteDomProps?: Omit<RemoteDOMResourceProps, 'resource' | 'onUIAction'>;
 }
 ```
 
@@ -65,7 +69,7 @@ interface UIResourceRendererProps {
   ```
   
   **Asynchronous Communication**: When actions include a `messageId`, the iframe automatically receives response messages (`ui-message-received`, `ui-message-response`). See [Protocol Details](../protocol-details.md#asynchronous-communication-with-message-ids) for examples.
-- **`supportedContentTypes`**: Optional array to restrict which content types are allowed (`['rawHtml', 'externalUrl', 'remoteDom']`)
+- **`supportedContentTypes`**: Optional array to restrict which content types are allowed (`['rawHtml', 'externalUrl']`)
 - **`htmlProps`**: Optional props for the `<HTMLResourceRenderer>`
   - **`style`**: Optional custom styles for iframe-based resources
   - **`proxy`**: Optional. A URL to a static "proxy" script for rendering external URLs. See [Using a Proxy for External URLs](./using-a-proxy.md) for details.
@@ -76,11 +80,6 @@ interface UIResourceRendererProps {
     - **`ref`**: Optional React ref to access the underlying iframe element
   - **`iframeRenderData`**: Optional `Record<string, unknown>` to pass data to the iframe upon rendering. This enables advanced use cases where the parent application needs to provide initial state or configuration to the sandboxed iframe content.
   - **`autoResizeIframe`**: Optional `boolean | { width?: boolean; height?: boolean }` to automatically resize the iframe to the size of the content.
-- **`remoteDomProps`**: Optional props for the `<RemoteDOMResourceRenderer>`
-  - **`library`**: Optional component library for Remote DOM resources (defaults to `basicComponentLibrary`)
-  - **`remoteElements`**: Optional remote element definitions for Remote DOM resources. REQUIRED for Remote DOM snippets.
-
-See [Custom Component Libraries](./custom-component-libraries.md) for a detailed guide on how to create and use your own libraries for `remoteDom` resources.
 
 ## Basic Usage
 
@@ -410,9 +409,7 @@ function MyComponent({ mcpResource }) {
 
 1. **Explicit `contentType`**: If `resource.contentType` is set, use it directly
 2. **MIME Type Detection**:
-   - `text/html` → `rawHtml`
-   - `text/uri-list` → `externalUrl`
-   - `application/vnd.mcp-ui.remote-dom+javascript` → `remoteDom`
+   - `text/html` or `text/html;profile=mcp-app` → content is inspected to determine if it's HTML or a URL
 3. **Fallback**: Show unsupported resource error
 
 ## Error Handling
@@ -442,31 +439,6 @@ function App({ mcpResource }) {
 When unsupported content types are encountered, `UIResourceRenderer` will display appropriate error messages:
 - `"Unsupported content type: {type}."`
 - `"Unsupported resource type."`
-
-### Custom Component Library (for Remote DOM resources)
-
-You can provide a custom component library to render Remote DOM resources with your own components. For a detailed guide, see [Custom Component Libraries](./custom-component-libraries.md).
-
-```tsx
-import { ComponentLibrary } from '@mcp-ui/client';
-import { MyButton, MyCard } from './MyComponents';
-
-const customLibrary: ComponentLibrary = {
-  name: 'custom',
-  elements: [
-    { tagName: 'my-button', component: MyButton },
-    { tagName: 'my-card', component: MyCard },
-  ],
-};
-
-<UIResourceRenderer
-  resource={mcpResource.resource}
-  remoteDomProps={{
-    library: customLibrary,
-  }}
-  onUIAction={handleUIAction}
-/>
-```
 
 ## Security Considerations
 

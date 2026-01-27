@@ -4,7 +4,7 @@ layout: home
 hero:
   name: MCP-UI -> MCP Apps
   text: Interactive UI Components over MCP
-  tagline: Open protocol to build rich, dynamic interfaces for your agentic apps with SDKs that bring UI to AI interactions.
+  tagline: Build rich, dynamic interfaces for AI tools using the MCP Apps standard.
   image:
     light: /logo-lg-black.png
     dark: /logo-lg.png
@@ -24,14 +24,14 @@ hero:
       link: /about
 
 features:
-  - title: 🌐 Standardized Protocol
-    details: MCP-UI is standardized into MCP Apps. The MCP-UI SDKs are fully compliant and ready to use.
+  - title: 🌐 MCP Apps Standard
+    details: MCP Apps is the official standard for interactive UI in MCP. The MCP-UI packages implement the spec, and serve as a community playground for future enhancements.
   - title: 🛠️ Client & Server SDKs
-    details: Provides powerful utilities to create interactive UI resources in MCP servers (Typescript, Ruby, and Python), as well as robust components for simple host integration (React and Web Components).
+    details: The recommended MCP Apps Client SDK, with components for seamless integration. Includes server SDK with utilities.
   - title: 🔒 Secure
     details: All remote code executes in sandboxed iframes, ensuring host and user security while maintaining rich interactivity.
   - title: 🎨 Flexible
-    details: MCP-UI is a playground to experiment with agentic UI. Community feedback will help shape the MCP Apps spec.
+    details: Supports HTML content. Works with MCP Apps hosts and legacy MCP-UI hosts alike.
 ---
 
 <!-- ## See MCP-UI in Action -->
@@ -46,99 +46,68 @@ features:
 </div>
 </div>
 
-## Quick Example (will be updated shortly!)
+## Quick Example
 
-**Server Side** - Create interactive resources to return in your MCP tool results:
+**Client Side** - Render tool UIs with `AppRenderer`:
 
-:::: code-group
-```typescript [TypeScript]
-import { createUIResource } from '@mcp-ui/server';
+```tsx
+import { AppRenderer } from '@mcp-ui/client';
 
-const interactiveForm = createUIResource({
-  uri: 'ui://user-form/1',
-  content: {
-    type: 'externalUrl',
-    iframeUrl: 'https://yourapp.com'
-  },
-  encoding: 'text',
-});
-```
-
-```python [Python]
-from mcp_ui_server import create_ui_resource
-
-interactive_form = create_ui_resource({
-    "uri": "ui://user-form/1",
-    "content": {
-        "type": "externalUrl",
-        "iframeUrl": "https://yourapp.com"
-    },
-    "encoding": "text"
-})
-```
-
-```ruby [Ruby]
-require 'mcp_ui_server'
-
-interactive_form = McpUiServer.create_ui_resource(
-  uri: 'ui://user-form/1',
-  content: {
-    type: :external_url,
-    iframeUrl: 'https://yourapp.com'
-  },
-  encoding: :text
-)
-```
-::::
-
-**Client Side** - Render on the host with a single component:
-
-:::: code-group
-```tsx [React]
-import { UIResourceRenderer } from '@mcp-ui/client';
-
-// `mcpResource` would come from your MCP response
-function MyApp({ mcpResource }) {
+function ToolUI({ client, toolName, toolInput, toolResult }) {
   return (
-    <UIResourceRenderer
-      resource={mcpResource.resource}
-      onUIAction={(action) => {
-        console.log('User action:', action);
+    <AppRenderer
+      client={client}
+      toolName={toolName}
+      sandbox={{ url: sandboxUrl }}
+      toolInput={toolInput}
+      toolResult={toolResult}
+      onOpenLink={async ({ url }) => {
+        // Validate URL scheme before opening
+        if (url.startsWith('https://') || url.startsWith('http://')) {
+          window.open(url);
+        }
       }}
+      onMessage={async (params) => console.log('Message:', params)}
     />
   );
 }
 ```
 
-```html [Web Component / HTML]
-<!-- index.html -->
-<ui-resource-renderer id="resource-renderer"></ui-resource-renderer>
+**Server Side** - Create a tool with an interactive UI using `_meta.ui.resourceUri`:
 
-<!-- main.js -->
-<script type="module">
-  // 1. Import the script to register the component
-  import '@mcp-ui/client/ui-resource-renderer.wc.js';
+```typescript
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerAppTool, registerAppResource } from '@modelcontextprotocol/ext-apps/server';
+import { createUIResource } from '@mcp-ui/server';
+import { z } from 'zod';
 
-  // 2. This object would come from your MCP response
-  const mcpResource = {
-    resource: {
-      uri: 'ui://user-form/1',
-      mimeType: 'text/uri-list',
-      text: 'https://example.com'
-    }
-  };
+const server = new McpServer({ name: 'my-server', version: '1.0.0' });
 
-  // 3. Get the element and pass data
-  const renderer = document.getElementById('resource-renderer');
-  renderer.setAttribute('resource', JSON.stringify(mcpResource.resource));
+// Create the UI resource
+const widgetUI = createUIResource({
+  uri: 'ui://my-server/widget',
+  content: { type: 'rawHtml', htmlString: '<h1>Interactive Widget</h1>' },
+  encoding: 'text',
+});
 
-  // 4. Listen for events
-  renderer.addEventListener('onUIAction', (event) => {
-    console.log('User action:', event.detail);
-  });
-</script>
+// Register the resource handler
+registerAppResource(server, 'widget_ui', widgetUI.resource.uri, {}, async () => ({
+  contents: [widgetUI.resource]
+}));
+
+// Register the tool with _meta.ui.resourceUri
+registerAppTool(server, 'show_widget', {
+  description: 'Show interactive widget',
+  inputSchema: { query: z.string() },
+  _meta: { ui: { resourceUri: widgetUI.resource.uri } }  // Links tool to UI
+}, async ({ query }) => {
+  return { content: [{ type: 'text', text: `Query: ${query}` }] };
+});
 ```
-::::
+
+::: tip Legacy MCP-UI Support
+For existing MCP-UI apps or hosts that don't support MCP Apps yet, see the [Legacy MCP-UI Adapter](./guide/mcp-apps) guide.
+:::
 
 
 <style>

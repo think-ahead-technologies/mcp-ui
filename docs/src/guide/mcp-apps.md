@@ -1,12 +1,22 @@
-# MCP Apps Integration
+# Legacy MCP-UI Adapter
 
-The MCP Apps adapter in `@mcp-ui/server` enables your MCP-UI HTML widget to run inside MCP Apps-compliant hosts that implement the [MCP Apps SEP protocol](https://github.com/modelcontextprotocol/ext-apps). This guide walks you through the integration process.
+::: tip For New Apps
+**Building a new app?** Use the MCP Apps patterns directly - see [Getting Started](./getting-started) for the recommended approach with `registerAppTool`, `_meta.ui.resourceUri`, and `AppRenderer`.
+
+This page is for **migrating existing MCP-UI widgets** to work in MCP Apps hosts.
+:::
+
+The MCP Apps adapter in `@mcp-ui/server` enables **existing MCP-UI HTML widgets** to run inside MCP Apps-compliant hosts. This is a backward-compatibility layer for apps that were built using the legacy MCP-UI `postMessage` protocol.
+
+## When to Use This Adapter
+
+- **Existing MCP-UI widgets**: You have HTML widgets using the `ui-lifecycle-*` message format
+- **Gradual migration**: You want your existing widgets to work in both legacy MCP-UI hosts and new MCP Apps hosts
+- **Protocol translation**: Your widget uses `postMessage` calls that need to be translated to JSON-RPC
 
 ## Overview
 
-MCP-UI has been standardized into MCP Apps. There were changes in the messaging protocol that will break existing MCP-UI apps (e.g., event names, JSON-RPC format, etc.) The adapter automatically translates the MCP-UI protocol to MCP Apps SEP, allowing you to maintain compatibility with both MCP-UI and MCP Apps hosts.
-
-With this adapter, your MCP-UI apps will work in both legacy MCP-UI hosts and new MCP Apps hosts out-of-the-box, allowing for a smooth migration. MCP-UI's server SDK will soon support MCP Apps directly.
+The adapter automatically translates between the MCP-UI `postMessage` protocol and MCP Apps JSON-RPC, allowing your existing widgets to work in MCP Apps hosts without code changes.
 
 ## How It Works
 
@@ -84,7 +94,8 @@ const widgetUI = createUIResource({
 
 ```typescript
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { createUIResource, RESOURCE_URI_META_KEY } from '@mcp-ui/server';
+import { createUIResource } from '@mcp-ui/server';
+import { registerAppTool, registerAppResource } from '@modelcontextprotocol/ext-apps/server';
 import { z } from 'zod';
 
 const server = new McpServer({ name: 'my-server', version: '1.0.0' });
@@ -96,7 +107,8 @@ const widgetUI = createUIResource({
 });
 
 // Register the resource so the host can fetch it
-server.registerResource(
+registerAppResource(
+  server,
   'widget_ui',           // Resource name
   widgetUI.resource.uri, // Resource URI
   {},                    // Resource metadata
@@ -106,7 +118,8 @@ server.registerResource(
 );
 
 // Register the tool with _meta linking to the UI resource
-server.registerTool(
+registerAppTool(
+  server,
   'my_widget',
   {
     description: 'An interactive widget',
@@ -115,7 +128,9 @@ server.registerTool(
     },
     // This tells MCP Apps hosts where to find the UI
     _meta: {
-      [RESOURCE_URI_META_KEY]: widgetUI.resource.uri
+      ui: {
+        resourceUri: widgetUI.resource.uri
+      }
     }
   },
   async ({ query }) => {
@@ -126,14 +141,15 @@ server.registerTool(
 );
 ```
 
-The key requirement for MCP Apps hosts is that the tool's `_meta` contains the `ui/resourceUri` key pointing to the UI resource URI. This tells the host where to fetch the widget HTML.
+The key requirement for MCP Apps hosts is that the tool's `_meta.ui.resourceUri` points to the UI resource URI. This tells the host where to fetch the widget HTML.
 
 ### 3. Add the MCP-UI Embedded Resource to Tool Responses
 
-To support **MCP-UI hosts** (which expect embedded resources in tool responses), also return a `createUIResource` result **without** the MCP Apps adapter:
+To support **MCP-UI hosts** (which expect embedded resources in tool responses), also return a `createUIResource` result:
 
 ```typescript
-server.registerTool(
+registerAppTool(
+  server,
   'my_widget',
   {
     description: 'An interactive widget',
@@ -142,7 +158,9 @@ server.registerTool(
     },
     // For MCP Apps hosts - points to the registered resource
     _meta: {
-      [RESOURCE_URI_META_KEY]: widgetUI.resource.uri
+      ui: {
+        resourceUri: widgetUI.resource.uri
+      }
     }
   },
   async ({ query }) => {
@@ -326,7 +344,8 @@ import express from 'express';
 import cors from 'cors';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { createUIResource, RESOURCE_URI_META_KEY } from '@mcp-ui/server';
+import { createUIResource } from '@mcp-ui/server';
+import { registerAppTool, registerAppResource } from '@modelcontextprotocol/ext-apps/server';
 import { z } from 'zod';
 
 const app = express();
@@ -383,7 +402,8 @@ const graphUI = createUIResource({
 });
 
 // Register the UI resource
-server.registerResource(
+registerAppResource(
+  server,
   'graph_ui',
   graphUI.resource.uri,
   {},
@@ -393,7 +413,8 @@ server.registerResource(
 );
 
 // Register the tool with _meta linking to the UI resource
-server.registerTool(
+registerAppTool(
+  server,
   'show_graph',
   {
     description: 'Display an interactive graph',
@@ -402,7 +423,9 @@ server.registerTool(
     },
     // For MCP Apps hosts - points to the registered resource
     _meta: {
-      [RESOURCE_URI_META_KEY]: graphUI.resource.uri
+      ui: {
+        resourceUri: graphUI.resource.uri
+      }
     }
   },
   async ({ title }) => {
@@ -440,10 +463,150 @@ The adapter logs debug information to the browser console. Look for messages pre
 [MCP Apps Adapter] Intercepted MCP-UI message: prompt
 ```
 
+## Host-Side Rendering (Client SDK)
+
+The `@mcp-ui/client` package provides React components for rendering MCP Apps tool UIs in your host application.
+
+### AppRenderer Component
+
+`AppRenderer` is the high-level component that handles the complete lifecycle of rendering an MCP tool's UI:
+
+```tsx
+import { AppRenderer, type AppRendererHandle } from '@mcp-ui/client';
+
+function ToolUI({ client, toolName, toolInput, toolResult }) {
+  const appRef = useRef<AppRendererHandle>(null);
+
+  return (
+    <AppRenderer
+      ref={appRef}
+      client={client}
+      toolName={toolName}
+      sandbox={{ url: new URL('http://localhost:8765/sandbox_proxy.html') }}
+      toolInput={toolInput}
+      toolResult={toolResult}
+      hostContext={{ theme: 'dark' }}
+      onOpenLink={async ({ url }) => {
+        if (url.startsWith('https://') || url.startsWith('http://')) {
+          window.open(url);
+        }
+      }}
+      onMessage={async (params) => {
+        console.log('Message from tool UI:', params);
+        return { isError: false };
+      }}
+      onError={(error) => console.error('Tool UI error:', error)}
+    />
+  );
+}
+```
+
+**Key Props:**
+- `client` - Optional MCP client for automatic resource fetching and MCP request forwarding
+- `toolName` - Name of the tool to render UI for
+- `sandbox` - Sandbox configuration with the sandbox proxy URL
+- `html` - Optional pre-fetched HTML (skips resource fetching)
+- `toolResourceUri` - Optional pre-fetched resource URI
+- `toolInput` / `toolResult` - Tool arguments and results to pass to the UI
+- `hostContext` - Theme, locale, viewport info for the guest UI
+- `onOpenLink` / `onMessage` / `onLoggingMessage` - Handlers for guest UI requests
+
+**Ref Methods:**
+- `sendToolListChanged()` - Notify guest when tools change
+- `sendResourceListChanged()` - Notify guest when resources change
+- `sendPromptListChanged()` - Notify guest when prompts change
+- `teardownResource()` - Clean up before unmounting
+
+### Using Without an MCP Client
+
+You can use `AppRenderer` without a full MCP client by providing custom handlers:
+
+```tsx
+<AppRenderer
+  // No client - use callbacks instead
+  toolName="my-tool"
+  toolResourceUri="ui://my-server/my-tool"
+  sandbox={{ url: sandboxUrl }}
+  onReadResource={async ({ uri }) => {
+    // Proxy to your MCP client in a different context
+    return myMcpProxy.readResource({ uri });
+  }}
+  onCallTool={async (params) => {
+    return myMcpProxy.callTool(params);
+  }}
+/>
+```
+
+Or provide pre-fetched HTML directly:
+
+```tsx
+<AppRenderer
+  toolName="my-tool"
+  sandbox={{ url: sandboxUrl }}
+  html={preloadedHtml}  // Skip all resource fetching
+  toolInput={args}
+/>
+```
+
+### AppFrame Component
+
+`AppFrame` is the lower-level component for when you already have the HTML content and an `AppBridge` instance:
+
+```tsx
+import { AppFrame, AppBridge } from '@mcp-ui/client';
+
+function LowLevelToolUI({ html, client }) {
+  const bridge = useMemo(() => new AppBridge(client, hostInfo, capabilities), [client]);
+
+  return (
+    <AppFrame
+      html={html}
+      sandbox={{ url: sandboxUrl }}
+      appBridge={bridge}
+      toolInput={{ query: 'test' }}
+      onSizeChanged={(size) => console.log('Size changed:', size)}
+    />
+  );
+}
+```
+
+### Sandbox Proxy
+
+Both components require a sandbox proxy HTML file to be served. This provides security isolation for the guest UI. The sandbox proxy URL should point to a page that loads the MCP Apps sandbox proxy script.
+
+## Declaring UI Extension Support
+
+When creating your MCP client, declare UI extension support using the provided type and capabilities:
+
+```typescript
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import {
+  type ClientCapabilitiesWithExtensions,
+  UI_EXTENSION_CAPABILITIES,
+} from '@mcp-ui/client';
+
+const capabilities: ClientCapabilitiesWithExtensions = {
+  // Standard capabilities
+  roots: { listChanged: true },
+  // UI extension support (SEP-1724 pattern)
+  extensions: UI_EXTENSION_CAPABILITIES,
+};
+
+const client = new Client(
+  { name: 'my-app', version: '1.0.0' },
+  { capabilities }
+);
+```
+
+This tells MCP servers that your client can render UI resources with MIME type `text/html;profile=mcp-app`.
+
+> **Note:** This uses the `extensions` field pattern from [SEP-1724](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1724), which is not yet part of the official MCP protocol.
+
 ## Related Resources
 
+- [Getting Started](./getting-started) - Recommended patterns for new MCP Apps
 - [MCP Apps SEP Specification](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/draft/apps.mdx)
 - [@modelcontextprotocol/ext-apps](https://github.com/modelcontextprotocol/ext-apps)
-- [Apps SDK Integration](./apps-sdk.md) - For ChatGPT integration
-- [Protocol Details](./protocol-details.md) - MCP-UI protocol reference
+- [Apps SDK Integration](./apps-sdk.md) - For ChatGPT integration (separate from MCP Apps)
+- [Protocol Details](./protocol-details.md) - MCP-UI wire format reference
 
