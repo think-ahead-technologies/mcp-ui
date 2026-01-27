@@ -151,7 +151,7 @@ func TestAdapter_GetMIMEType(t *testing.T) {
 	assert.NoError(t, err)
 
 	mimeType := adapter.GetMIMEType()
-	assert.Equal(t, "text/html", mimeType)
+	assert.Equal(t, "text/html;profile=mcp-app", mimeType)
 }
 
 func TestAdapter_GetType(t *testing.T) {

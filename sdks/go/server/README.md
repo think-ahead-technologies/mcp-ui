@@ -52,6 +52,88 @@ func main() {
 - **Helper functions:** UI action results (tool calls, prompts, links, intents, notifications)
 - **Strong typing:** Type-safe API with validation
 - **No dependencies:** Uses only Go standard library
+- **MCP Apps Standard:** Full support for MCP Apps SEP protocol (version 2025-11-21)
+
+## MCP Apps Standard Support
+
+This SDK fully supports the MCP Apps Standard (protocol version 2025-11-21). Key features:
+
+- **Standard MIME Type**: Uses `text/html;profile=mcp-app` for MCP Apps adapter
+- **Protocol Message Types**: Complete type definitions for MCP-UI protocol messages
+- **Render Data Support**: Type-safe render data structures for widget initialization
+- **Protocol Version Tracking**: Built-in protocol version constants
+
+### Protocol Constants
+
+```go
+// Protocol version
+mcpuiserver.ProtocolVersion // "2025-11-21"
+
+// Resource URI metadata key (for MCP Apps hosts)
+mcpuiserver.ResourceURIMetaKey // "ui/resourceUri"
+
+// MIME types
+mcpuiserver.MimeTypeMCPAppsAdapter // "text/html;profile=mcp-app"
+```
+
+### Protocol Message Types
+
+The SDK provides complete type definitions for MCP-UI protocol messages:
+
+```go
+// Message type constants
+mcpuiserver.MessageTypeToolCall
+mcpuiserver.MessageTypePrompt
+mcpuiserver.MessageTypeLifecycleReady
+mcpuiserver.MessageTypeSizeChange
+mcpuiserver.MessageTypeRequestData
+mcpuiserver.MessageTypeRequestRenderData
+// ... and more
+
+// Message structures with helper constructors
+msgID := "msg-123"
+readyMsg := mcpuiserver.NewLifecycleReadyMessage(&msgID)
+```
+
+### Render Data
+
+Pass initialization data to widgets using the `RenderData` type:
+
+```go
+renderData := mcpuiserver.RenderData{
+    Locale:      "en-US",
+    Theme:       "dark",
+    DisplayMode: mcpuiserver.DisplayModeInline,
+    MaxHeight:   600,
+    ToolInput: map[string]interface{}{
+        "query": "user data",
+    },
+}
+
+resource, err := mcpuiserver.CreateUIResource(
+    "ui://my-widget",
+    &mcpuiserver.RawHTMLPayload{
+        Type:       mcpuiserver.ContentTypeRawHTML,
+        HTMLString: "<h1>My Widget</h1>",
+    },
+    mcpuiserver.EncodingText,
+    mcpuiserver.WithUIMetadata(map[string]interface{}{
+        mcpuiserver.UIMetadataKeyInitialRenderData: renderData,
+    }),
+)
+```
+
+### Display Modes
+
+Specify how widgets should be displayed:
+
+```go
+mcpuiserver.DisplayModeInline     // Widget displayed inline in chat
+mcpuiserver.DisplayModePIP        // Picture-in-picture mode
+mcpuiserver.DisplayModeFullscreen // Fullscreen mode
+```
+
+For more details on the protocol, see [docs/PROTOCOL.md](docs/PROTOCOL.md).
 
 ## Usage Examples
 
@@ -344,6 +426,34 @@ Sets embedded resource properties (annotations, _meta).
 - `MimeTypeURIList` - `text/uri-list`
 - `MimeTypeRemoteDomReact` - `application/vnd.mcp-ui.remote-dom+javascript; framework=react`
 - `MimeTypeRemoteDomWC` - `application/vnd.mcp-ui.remote-dom+javascript; framework=webcomponents`
+- `MimeTypeMCPAppsAdapter` - `text/html;profile=mcp-app` (MCP Apps standard)
+- `MimeTypeAppsSdkAdapter` - `text/html+skybridge` (Apps SDK)
+
+#### Protocol Constants
+
+- `ProtocolVersion` - `2025-11-21` (MCP Apps SEP protocol version)
+- `ResourceURIMetaKey` - `ui/resourceUri` (metadata key for resource URI)
+
+#### Message Type Constants
+
+- `MessageTypeToolCall` - `tool`
+- `MessageTypePrompt` - `prompt`
+- `MessageTypeLink` - `link`
+- `MessageTypeIntent` - `intent`
+- `MessageTypeNotify` - `notify`
+- `MessageTypeLifecycleReady` - `ui-lifecycle-iframe-ready`
+- `MessageTypeSizeChange` - `ui-size-change`
+- `MessageTypeRequestData` - `ui-request-data`
+- `MessageTypeRequestRenderData` - `ui-request-render-data`
+- `MessageTypeLifecycleRenderData` - `ui-lifecycle-iframe-render-data`
+- `MessageTypeMessageReceived` - `ui-message-received`
+- `MessageTypeMessageResponse` - `ui-message-response`
+
+#### Display Mode Constants
+
+- `DisplayModeInline` - `inline`
+- `DisplayModePIP` - `pip`
+- `DisplayModeFullscreen` - `fullscreen`
 
 #### Metadata Keys
 
@@ -403,6 +513,38 @@ Run specific test:
 ```bash
 go test -v -run TestCreateUIResource
 ```
+
+## Migration from v1.x
+
+### MIME Type Change (Breaking)
+
+The MCP Apps adapter now uses the official MIME type `text/html;profile=mcp-app` instead of plain `text/html`.
+
+**Before:**
+```go
+// Implicit MIME type was "text/html"
+adapter.GetMIMEType() // Returns "text/html"
+```
+
+**After:**
+```go
+// Now returns the official MCP Apps MIME type
+adapter.GetMIMEType() // Returns "text/html;profile=mcp-app"
+```
+
+**Impact:** This is a breaking change for the MIME type value, but should be transparent for most users. MCP Apps hosts expect the `profile=mcp-app` variant and will work correctly with this change.
+
+### New Constants and Types
+
+The SDK now exports several new constants and types for protocol alignment:
+
+- `ProtocolVersion`: Protocol version constant ("2025-11-21")
+- `ResourceURIMetaKey`: Metadata key for resource URI ("ui/resourceUri")
+- `RenderData`: Type-safe render data structure
+- `DisplayMode`: Display mode constants (inline, pip, fullscreen)
+- Protocol message types and structures
+
+These additions are backward compatible - existing code will continue to work.
 
 ## License
 

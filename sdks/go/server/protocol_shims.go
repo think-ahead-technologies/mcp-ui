@@ -92,7 +92,7 @@ func (m *McpAppsProtocolShim) GenerateScriptTag() string {
 
 // GetMIMEType returns the standard HTML MIME type for MCP Apps
 func (m *McpAppsProtocolShim) GetMIMEType() string {
-	return MimeTypeMCPAppsAdapter // "text/html"
+	return MimeTypeMCPAppsAdapter // "text/html;profile=mcp-app"
 }
 
 // getProtocolShimGenerator creates the appropriate shim generator based on protocol configuration.

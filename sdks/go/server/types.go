@@ -25,13 +25,23 @@ const (
 
 	// Adapter MIME type constants
 	MimeTypeAppsSdkAdapter = "text/html+skybridge"
-	MimeTypeMCPAppsAdapter = "text/html"
+	MimeTypeMCPAppsAdapter = "text/html;profile=mcp-app"
 )
 
 // UIMetadataKey defines standard metadata keys
 const (
 	UIMetadataKeyPreferredFrameSize = "preferred-frame-size"
 	UIMetadataKeyInitialRenderData  = "initial-render-data"
+)
+
+// Protocol version and metadata keys for MCP Apps standard
+const (
+	// ProtocolVersion is the MCP Apps SEP protocol version
+	ProtocolVersion = "2025-11-21"
+
+	// ResourceURIMetaKey is the metadata key for storing resource URI in tool responses.
+	// Required by MCP Apps hosts to identify UI resources.
+	ResourceURIMetaKey = "ui/resourceUri"
 )
 
 // Error definitions
@@ -81,6 +91,44 @@ type RemoteDOMFramework string
 const (
 	FrameworkReact         RemoteDOMFramework = "react"
 	FrameworkWebComponents RemoteDOMFramework = "webcomponents"
+)
+
+// DisplayMode represents the display mode for the UI widget
+type DisplayMode string
+
+const (
+	DisplayModeInline     DisplayMode = "inline"
+	DisplayModePIP        DisplayMode = "pip"
+	DisplayModeFullscreen DisplayMode = "fullscreen"
+)
+
+// RenderData contains initialization data passed to widgets
+type RenderData struct {
+	ToolInput   map[string]interface{} `json:"toolInput,omitempty"`
+	ToolOutput  interface{}            `json:"toolOutput,omitempty"`
+	WidgetState interface{}            `json:"widgetState,omitempty"`
+	Locale      string                 `json:"locale,omitempty"`
+	Theme       string                 `json:"theme,omitempty"`
+	DisplayMode DisplayMode            `json:"displayMode,omitempty"`
+	MaxHeight   int                    `json:"maxHeight,omitempty"`
+}
+
+// ProtocolMessageType represents MCP-UI protocol message types
+type ProtocolMessageType string
+
+const (
+	MessageTypeToolCall                ProtocolMessageType = "tool"
+	MessageTypePrompt                  ProtocolMessageType = "prompt"
+	MessageTypeLink                    ProtocolMessageType = "link"
+	MessageTypeIntent                  ProtocolMessageType = "intent"
+	MessageTypeNotify                  ProtocolMessageType = "notify"
+	MessageTypeLifecycleReady          ProtocolMessageType = "ui-lifecycle-iframe-ready"
+	MessageTypeSizeChange              ProtocolMessageType = "ui-size-change"
+	MessageTypeRequestData             ProtocolMessageType = "ui-request-data"
+	MessageTypeRequestRenderData       ProtocolMessageType = "ui-request-render-data"
+	MessageTypeLifecycleRenderData     ProtocolMessageType = "ui-lifecycle-iframe-render-data"
+	MessageTypeMessageReceived         ProtocolMessageType = "ui-message-received"
+	MessageTypeMessageResponse         ProtocolMessageType = "ui-message-response"
 )
 
 // ResourceContentPayload is the interface for content payloads

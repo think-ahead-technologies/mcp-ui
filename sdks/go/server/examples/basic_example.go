@@ -30,6 +30,12 @@ func main() {
 
 	// Example 6: UI Action Results
 	example6()
+
+	// Example 7: MCP Apps Resource with Render Data
+	example7()
+
+	// Example 8: Protocol Message Construction
+	example8()
 }
 
 func example1() {
@@ -211,6 +217,92 @@ func example6() {
 	notification := mcpuiserver.UIActionResultNotification("Data saved successfully!")
 	fmt.Println("\nNotification:")
 	printJSON(notification)
+}
+
+func example7() {
+	fmt.Println("Example 7: MCP Apps Resource with Render Data")
+	fmt.Println("-----------------------------------------------")
+
+	renderData := mcpuiserver.RenderData{
+		Locale:      "en-US",
+		Theme:       "dark",
+		DisplayMode: mcpuiserver.DisplayModeInline,
+		MaxHeight:   600,
+		ToolInput: map[string]interface{}{
+			"userId": "12345",
+		},
+	}
+
+	resource, err := mcpuiserver.CreateUIResource(
+		"ui://mcp-apps-widget",
+		&mcpuiserver.RawHTMLPayload{
+			Type:       mcpuiserver.ContentTypeRawHTML,
+			HTMLString: "<h1>MCP Apps Widget</h1><p>With render data support</p>",
+		},
+		mcpuiserver.EncodingText,
+		mcpuiserver.WithProtocol(mcpuiserver.ProtocolTypeMCPApps),
+		mcpuiserver.WithUIMetadata(map[string]interface{}{
+			mcpuiserver.UIMetadataKeyInitialRenderData: renderData,
+		}),
+	)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	printJSON(resource)
+
+	// Show protocol constants
+	fmt.Printf("Protocol Version: %s\n", mcpuiserver.ProtocolVersion)
+	fmt.Printf("Resource URI Meta Key: %s\n", mcpuiserver.ResourceURIMetaKey)
+	fmt.Printf("MIME Type: %s\n", resource.Resource.MimeType)
+	fmt.Println()
+}
+
+func example8() {
+	fmt.Println("Example 8: Protocol Message Construction")
+	fmt.Println("-----------------------------------------")
+
+	msgID := "msg-123"
+
+	// Lifecycle ready
+	readyMsg := mcpuiserver.NewLifecycleReadyMessage(&msgID)
+	fmt.Println("\nLifecycle Ready Message:")
+	printJSON(readyMsg)
+
+	// Size change
+	width := 800
+	height := 600
+	sizeMsg := mcpuiserver.NewSizeChangeMessage(&width, &height, &msgID)
+	fmt.Println("Size Change Message:")
+	printJSON(sizeMsg)
+
+	// Request data
+	requestMsg := mcpuiserver.NewRequestDataMessage(
+		"getUserData",
+		map[string]interface{}{"userId": "123"},
+		msgID,
+	)
+	fmt.Println("Request Data Message:")
+	printJSON(requestMsg)
+
+	// Render data message
+	renderData := mcpuiserver.RenderData{
+		Locale:      "en-US",
+		Theme:       "dark",
+		DisplayMode: mcpuiserver.DisplayModeInline,
+	}
+	renderDataMsg := mcpuiserver.NewRenderDataMessage(renderData, &msgID)
+	fmt.Println("Render Data Message:")
+	printJSON(renderDataMsg)
+
+	// Message type constants
+	fmt.Println("Message Type Constants:")
+	fmt.Printf("  Tool Call: %s\n", mcpuiserver.MessageTypeToolCall)
+	fmt.Printf("  Prompt: %s\n", mcpuiserver.MessageTypePrompt)
+	fmt.Printf("  Lifecycle Ready: %s\n", mcpuiserver.MessageTypeLifecycleReady)
+	fmt.Printf("  Size Change: %s\n", mcpuiserver.MessageTypeSizeChange)
+	fmt.Println()
 }
 
 func printJSON(v interface{}) {

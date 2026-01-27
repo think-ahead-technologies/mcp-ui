@@ -78,7 +78,7 @@ func (a *Adapter) GetScript() string {
 
 // GetMIMEType returns the MIME type for MCP Apps adapter resources.
 func (a *Adapter) GetMIMEType() string {
-	return "text/html"
+	return "text/html;profile=mcp-app"
 }
 
 // GetType returns the adapter type identifier.
